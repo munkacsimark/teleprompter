@@ -14,6 +14,28 @@ import { toggleFullScreen } from '../../utils/fullScreen'
 * @function TextScroller
 * */
 
+const useInterval = (callback, delay) => {
+	const savedCallback = useRef();
+
+	useEffect(() => {
+		savedCallback.current = callback;
+	}, [callback]);
+
+	useEffect(() => {
+		function tick() {
+			savedCallback.current();
+		}
+		if (delay !== null) {
+			let id = setInterval(tick, delay);
+			console.log('CREATED: ', id)
+			return () => {
+				console.log('KILLED: ', id)
+				clearInterval(id);
+			}
+		}
+	}, [delay]);
+}
+
 const Scroller = styled.div`
 	max-width: ${props => props.scrollWidth};
 	p {
@@ -23,6 +45,10 @@ const Scroller = styled.div`
 	}
 `
 
+const STEP = 5
+const SPEED = 10
+let interval = null
+
 const TextScroller = props => {
 	const [socket] = useSocket(process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : process.env.NODE_ENV === 'production')
 	const { text, scrollSpeed, prompterObject } = props
@@ -31,16 +57,11 @@ const TextScroller = props => {
 	const [position, setPosition] = useState(0)
 	const scrollerRef = useRef(null)
 
-	function startScroll() {
-		const scroller = document.querySelector('#scroller')
-		setInterval(() => {
-			setPosition(position + 1)
-			console.debug('position', position)
-			scroller.scroll({
-				top: position,
-			})
-		}, 100)
-	}
+	useInterval(() => {
+		console.log(position);
+		setPosition(position + STEP)
+		scrollerRef.current.scroll({ top: position })
+	}, playing ? SPEED : null)
 
 	socket.on('isPlaying', ({ prompterId, isPlaying }) => {
 		togglePlaying(isPlaying)
@@ -52,23 +73,19 @@ const TextScroller = props => {
 		}
 	})
 
-	useEffect(() => {
-		console.debug('position', position)
-	}, [position])
+	const scrollHandler = event => {
+		setPosition(event.currentTarget.scrollTop)
+	}
 
 	useEffect(() => {
+		scrollerRef.current.addEventListener('scroll', scrollHandler)
+		return () => scrollerRef.current.removeEventListener('scroll', scrollHandler)
+	}, [])
+
+	/*useEffect(() => {
 		console.debug('isPlaying', playing)
-		if (playing) {
-			startScroll()
-		}
-	}, [playing])
-
-	useEffect(() => {
-		const scroller = document.querySelector('#scroller')
-		scroller.addEventListener('scroll', event => {
-			setPosition(event.currentTarget.scrollTop)
-		})
-	}, [position])
+		playing ? startScroll() : stopScroll()
+	}, [playing])*/
 
 	function handleKeyPress(key, e) {
 		e.preventDefault()
@@ -91,11 +108,10 @@ const TextScroller = props => {
 				lineHeight={prompterObject.lineHeight}
 				letterSpacing={prompterObject.letterSpacing}
 				scrollWidth={prompterObject.scrollWidth}
+				ref={scrollerRef}
 			>
 				<div
 					className={styles.scroller}
-					ref={scrollerRef}
-					id="scroller"
 				>
 					<p
 						ref={textRef}

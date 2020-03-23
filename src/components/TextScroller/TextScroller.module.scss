@@ -2,6 +2,9 @@
     overflow-wrap: break-word;
     margin-left: auto;
     margin-right: auto;
+    height: calc(100vh - 90px); // -header
+    overflow: scroll;
+    background-color: red;
     .scroller {
         padding: 50px;
         p {
